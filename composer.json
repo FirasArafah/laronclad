@@ -1,0 +1,82 @@
+{
+    "name": "firasarafah/laronclad",
+    "description": "Runtime monitoring and protection layer for Laravel applications.",
+    "keywords": [
+        "laravel",
+        "security",
+        "rasp",
+        "monitoring",
+        "sql-injection",
+        "ssrf"
+    ],
+    "license": "Apache-2.0",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Firas Arafah",
+            "homepage": "https://github.com/FirasArafah"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/process": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laronclad\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Laronclad\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Laronclad\\LaroncladServiceProvider"
+            ],
+            "aliases": {
+                "Laronclad": "Laronclad\\Facades\\Laronclad"
+            }
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "analyse": "phpstan analyse --memory-limit=2G",
+        "format": "pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "archive": {
+        "exclude": [
+            "/.github",
+            "/docs",
+            "/tests",
+            "/demo",
+            "/phpunit.xml",
+            "/phpstan.neon",
+            "/pint.json",
+            "/CHANGELOG.md",
+            "/SECURITY.md"
+        ]
+    }
+}
