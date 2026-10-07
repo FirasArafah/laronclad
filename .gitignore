@@ -1,0 +1,64 @@
+# Composer
+/vendor/
+composer.lock
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PHP
+.phpunit.result.cache
+.phpunit.cache/
+.php-cs-fixer.cache
+.phpactor.json
+build/
+coverage/
+
+# Laravel
+/storage/logs/*.log
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+
+# Demo app
+demo/vulnerable-app/.env
+demo/vulnerable-app/vendor/
+demo/vulnerable-app/storage/
+demo/vulnerable-app/bootstrap/cache/
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Builds
+/dist/
+*.tar.gz
+
+
+# MD Files
+CONTRIBUTING.md
+
+# Internal docs (kept locally only)
+/docs/
