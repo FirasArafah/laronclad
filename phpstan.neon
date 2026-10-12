@@ -6,3 +6,8 @@ parameters:
         - src
         - tests
     level: 8
+    ignoreErrors:
+        # Pest's test closures expose $this as PHPUnit\Framework\TestCase,
+        # not as the Orchestra Testbench case that provides artisan().
+        # The runtime is correct; static analysis cannot see it.
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::artisan\(\)#'
