@@ -2,9 +2,18 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Laronclad\Analysis\ConfidenceLevel;
+use Laronclad\Analysis\RuleInterface;
 use Laronclad\Analysis\Rules\MetadataEndpointRule;
 use Laronclad\Analysis\Rules\PrivateIpRule;
 use Laronclad\Analysis\ThreatAnalyzer;
+use Laronclad\Analysis\ThreatMatch;
+use Laronclad\Analysis\ThreatType;
+use Laronclad\Events\ThreatDetected;
 use Laronclad\Http\HttpInterceptor;
 use Laronclad\Logging\Redactor;
 use Laronclad\Logging\SafeLogger;
@@ -68,4 +77,82 @@ it('handles an empty string', function () {
     httpInterceptor($spy)->inspect('');
 
     expect($spy->messages)->toBe([]);
+});
+
+it('inspects real outbound requests through the registered middleware', function () {
+    // Dedup state must not leak between runs.
+    Cache::flush();
+
+    $captured = [];
+    Event::listen(ThreatDetected::class, function ($event) use (&$captured) {
+        $captured[] = $event;
+    });
+
+    Http::fake();
+
+    $response = Http::get('http://192.168.1.1/admin');
+
+    expect($response->successful())->toBeTrue();
+    expect($captured)->toHaveCount(1);
+    expect($captured[0]->match->rule)->toBe('private_ip');
+});
+
+it('passes requests through the middleware unchanged', function () {
+    Cache::flush();
+
+    $captured = [];
+    Event::listen(ThreatDetected::class, function ($event) use (&$captured) {
+        $captured[] = $event;
+    });
+
+    Http::fake();
+
+    $response = Http::get('https://api.example.com/users');
+
+    expect($response->successful())->toBeTrue();
+    expect($captured)->toBe([]);
+
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.example.com/users');
+});
+
+it('fails open and logs only the exception class', function () {
+    $logFile = (string) tempnam(sys_get_temp_dir(), 'laronclad');
+    $previous = ini_set('error_log', $logFile);
+
+    $throwingRule = new class implements RuleInterface
+    {
+        public function matches(string $input): ?ThreatMatch
+        {
+            throw new RuntimeException('sensitive-detail');
+        }
+
+        public function name(): string
+        {
+            return 'boom';
+        }
+
+        public function type(): ThreatType
+        {
+            return ThreatType::Ssrf;
+        }
+
+        public function confidence(): ConfidenceLevel
+        {
+            return ConfidenceLevel::High;
+        }
+    };
+
+    $interceptor = new HttpInterceptor(
+        analyzer: new ThreatAnalyzer([$throwingRule]),
+        logger: new SafeLogger(new HttpSpyLogger, new Redactor, deduplicationWindow: 0),
+    );
+
+    $interceptor->inspect('http://example.com/');
+
+    ini_set('error_log', (string) $previous);
+    $output = (string) file_get_contents($logFile);
+    unlink($logFile);
+
+    expect($output)->toContain('http inspection failed: RuntimeException');
+    expect($output)->not->toContain('sensitive-detail');
 });
