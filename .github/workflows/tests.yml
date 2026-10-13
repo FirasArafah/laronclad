@@ -17,7 +17,10 @@ jobs:
         laravel: ['12.*', '13.*']
         dependency-version: [prefer-lowest, prefer-stable]
         exclude:
+          # Laravel 13 requires Pest 4, which is not available on PHP 8.2/8.3.
           - php: '8.2'
+            laravel: '13.*'
+          - php: '8.3'
             laravel: '13.*'
 
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / ${{ matrix.dependency-version }}
