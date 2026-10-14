@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
+use Throwable;
 
 /**
  * Observes SQL queries before they reach the database.
@@ -17,6 +18,9 @@ use Laronclad\Logging\SafeLogger;
  * against the SQLi rules and hand matches to the logger.
  *
  * v0.1 does not block. It only logs.
+ *
+ * Fail-open: any failure inside inspection is swallowed. A
+ * monitoring tool must never break the application's own queries.
  */
 final readonly class DatabaseInterceptor
 {
@@ -40,19 +44,26 @@ final readonly class DatabaseInterceptor
 
     /**
      * Inspect a single query. Public so tests can call it directly.
+     *
+     * Never throws. Failures are reported to PHP's error log with
+     * the exception class only, so no SQL or input leaks into logs.
      */
     public function inspect(string $query): void
     {
-        $truncated = strlen($query) > $this->maxInputLength
-            ? substr($query, 0, $this->maxInputLength)
-            : $query;
+        try {
+            $truncated = strlen($query) > $this->maxInputLength
+                ? substr($query, 0, $this->maxInputLength)
+                : $query;
 
-        $matches = $this->analyzer->analyze($truncated, ThreatType::SqlInjection);
+            $matches = $this->analyzer->analyze($truncated, ThreatType::SqlInjection);
 
-        foreach ($matches as $match) {
-            $this->logger->log($match, [
-                'query_length' => strlen($query),
-            ]);
+            foreach ($matches as $match) {
+                $this->logger->log($match, [
+                    'query_length' => strlen($query),
+                ]);
+            }
+        } catch (Throwable $e) {
+            error_log('[laronclad] database inspection failed: '.$e::class);
         }
     }
 }
