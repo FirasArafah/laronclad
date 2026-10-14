@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Events\Dispatcher;
+use Illuminate\Support\Facades\Cache;
 use Laronclad\Analysis\ConfidenceLevel;
 use Laronclad\Analysis\ThreatMatch;
 use Laronclad\Analysis\ThreatType;
@@ -40,6 +41,26 @@ function makeMatch(
         rule: $rule,
         description: 'test match',
     );
+}
+
+/**
+ * Runs the callback and returns whatever it wrote to PHP's error log.
+ */
+function captureLoggerErrorLog(Closure $callback): string
+{
+    $file = (string) tempnam(sys_get_temp_dir(), 'laronclad');
+    $previous = ini_set('error_log', $file);
+
+    try {
+        $callback();
+    } finally {
+        ini_set('error_log', (string) $previous);
+    }
+
+    $output = (string) file_get_contents($file);
+    unlink($file);
+
+    return $output;
 }
 
 it('writes a JSON line for a match', function () {
@@ -111,9 +132,55 @@ it('never throws when the underlying logger throws', function () {
 
     $logger = new SafeLogger($throwingLogger, new Redactor, deduplicationWindow: 0);
 
-    $logger->log(makeMatch());
+    $output = captureLoggerErrorLog(function () use ($logger) {
+        $logger->log(makeMatch());
+    });
 
-    expect(true)->toBeTrue();
+    // Only the exception class is reported, never its message.
+    expect($output)->toContain('log write failed: RuntimeException');
+    expect($output)->not->toContain('boom');
+});
+
+it('still logs when the cache store throws', function () {
+    Cache::shouldReceive('has')->andThrow(new RuntimeException('redis-host-secret'));
+
+    $spy = new SpyLogger;
+    $logger = new SafeLogger($spy, new Redactor, deduplicationWindow: 60);
+
+    $output = captureLoggerErrorLog(function () use ($logger) {
+        $logger->log(makeMatch(), ['ip' => '1.2.3.4']);
+    });
+
+    expect($spy->records)->toHaveCount(1);
+    expect($output)->toContain('dedup check failed: RuntimeException');
+    expect($output)->not->toContain('redis-host-secret');
+});
+
+it('still dispatches the event when the cache store throws', function () {
+    Cache::shouldReceive('has')->andThrow(new RuntimeException('cache down'));
+
+    $events = new Dispatcher;
+
+    $captured = [];
+    $events->listen(
+        ThreatDetected::class,
+        function ($event) use (&$captured) {
+            $captured[] = $event;
+        },
+    );
+
+    $logger = new SafeLogger(
+        logger: new SpyLogger,
+        redactor: new Redactor,
+        events: $events,
+        deduplicationWindow: 60,
+    );
+
+    captureLoggerErrorLog(function () use ($logger) {
+        $logger->log(makeMatch(), ['ip' => '1.2.3.4']);
+    });
+
+    expect($captured)->toHaveCount(1);
 });
 
 it('dispatches a ThreatDetected event after logging', function () {

@@ -17,6 +17,10 @@ use Throwable;
  * All findings go through here, so this class is the only place
  * that knows the log format. Failures are swallowed: a monitoring
  * tool must never take down the application.
+ *
+ * Failure reports go to PHP's error log with the exception class
+ * only. Exception messages can carry connection strings or SQL
+ * bindings, so they are never copied into logs.
  */
 final readonly class SafeLogger
 {
@@ -32,18 +36,24 @@ final readonly class SafeLogger
      */
     public function log(ThreatMatch $match, array $context = []): void
     {
-        if ($this->shouldSkip($match, $context)) {
-            return;
-        }
-
         try {
+            if ($this->shouldSkip($match, $context)) {
+                return;
+            }
+
             $this->write($match, $context);
         } catch (Throwable $e) {
-            error_log('[laronclad] log write failed: '.$e->getMessage());
+            error_log('[laronclad] log write failed: '.$e::class);
         }
     }
 
     /**
+     * Whether this finding is a duplicate inside the window.
+     *
+     * Fail-open: if the cache store is unavailable, the finding is
+     * treated as new and still gets logged. Losing deduplication is
+     * better than losing detection or breaking the application.
+     *
      * @param  array<array-key, mixed>  $context
      */
     private function shouldSkip(ThreatMatch $match, array $context): bool
@@ -52,13 +62,17 @@ final readonly class SafeLogger
             return false;
         }
 
-        $key = $this->deduplicationKey($match, $context);
+        try {
+            $key = $this->deduplicationKey($match, $context);
 
-        if (Cache::has($key)) {
-            return true;
+            if (Cache::has($key)) {
+                return true;
+            }
+
+            Cache::put($key, true, $this->deduplicationWindow);
+        } catch (Throwable $e) {
+            error_log('[laronclad] dedup check failed: '.$e::class);
         }
-
-        Cache::put($key, true, $this->deduplicationWindow);
 
         return false;
     }

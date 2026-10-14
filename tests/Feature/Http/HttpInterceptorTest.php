@@ -115,7 +115,7 @@ it('passes requests through the middleware unchanged', function () {
     Http::assertSent(fn (Request $request) => $request->url() === 'https://api.example.com/users');
 });
 
-it('fails open and logs only the exception class', function () {
+it('keeps inspecting when a rule throws and leaks no details', function () {
     $logFile = (string) tempnam(sys_get_temp_dir(), 'laronclad');
     $previous = ini_set('error_log', $logFile);
 
@@ -142,17 +142,23 @@ it('fails open and logs only the exception class', function () {
         }
     };
 
+    $spy = new HttpSpyLogger;
+
     $interceptor = new HttpInterceptor(
-        analyzer: new ThreatAnalyzer([$throwingRule]),
-        logger: new SafeLogger(new HttpSpyLogger, new Redactor, deduplicationWindow: 0),
+        analyzer: new ThreatAnalyzer([$throwingRule, new PrivateIpRule]),
+        logger: new SafeLogger($spy, new Redactor, deduplicationWindow: 0),
     );
 
-    $interceptor->inspect('http://example.com/');
+    $interceptor->inspect('http://192.168.1.1/admin');
 
     ini_set('error_log', (string) $previous);
     $output = (string) file_get_contents($logFile);
     unlink($logFile);
 
-    expect($output)->toContain('http inspection failed: RuntimeException');
+    // The healthy rule after the failing one still ran.
+    expect($spy->messages)->toHaveCount(1);
+    // Only class names are reported, never the exception message.
+    expect($output)->toContain('rule failed');
+    expect($output)->toContain('threw RuntimeException');
     expect($output)->not->toContain('sensitive-detail');
 });
