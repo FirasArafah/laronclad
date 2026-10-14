@@ -89,6 +89,21 @@ final class LaroncladServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Console tooling is registered before the enabled check on
+        // purpose. A disabled install must still be able to run
+        // laronclad:status and laronclad:clear-logs, and to publish
+        // its config so it can be turned back on.
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/laronclad.php' => config_path('laronclad.php'),
+            ], 'laronclad-config');
+
+            $this->commands([
+                StatusCommand::class,
+                ClearLogsCommand::class,
+            ]);
+        }
+
         if (! config('laronclad.enabled', true)) {
             return;
         }
@@ -99,17 +114,6 @@ final class LaroncladServiceProvider extends ServiceProvider
 
         if (config('laronclad.http.enabled', true)) {
             $this->app->make(HttpInterceptor::class)->register();
-        }
-
-        if ($this->app->runningInConsole()) {
-            $this->publishes([
-                __DIR__.'/../config/laronclad.php' => config_path('laronclad.php'),
-            ], 'laronclad-config');
-
-            $this->commands([
-                StatusCommand::class,
-                ClearLogsCommand::class,
-            ]);
         }
     }
 

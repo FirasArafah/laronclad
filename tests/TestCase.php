@@ -29,4 +29,13 @@ abstract class TestCase extends Orchestra
             LaroncladServiceProvider::class,
         ];
     }
+
+    /**
+     * Boot a fresh application so tests can change the environment
+     * first. Public so Pest closures can call it.
+     */
+    public function rebootApplication(): void
+    {
+        $this->refreshApplication();
+    }
 }
