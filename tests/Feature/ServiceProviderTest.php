@@ -10,6 +10,26 @@ use Laronclad\Laronclad;
 use Laronclad\LaroncladServiceProvider;
 use Laronclad\Logging\SafeLogger;
 
+/**
+ * Runs the callback and returns whatever it wrote to PHP's error log.
+ */
+function captureProviderErrorLog(Closure $callback): string
+{
+    $file = (string) tempnam(sys_get_temp_dir(), 'laronclad');
+    $previous = ini_set('error_log', $file);
+
+    try {
+        $callback();
+    } finally {
+        ini_set('error_log', (string) $previous);
+    }
+
+    $output = (string) file_get_contents($file);
+    unlink($file);
+
+    return $output;
+}
+
 it('loads the service provider', function () {
     expect(config('laronclad'))->toBeArray();
 });
@@ -92,4 +112,21 @@ it('keeps commands but installs no hooks when disabled', function () {
     } finally {
         unset($_ENV['LARONCLAD_ENABLED'], $_SERVER['LARONCLAD_ENABLED']);
     }
+});
+
+it('does not break boot when the database hook cannot be installed', function () {
+    // DB::beforeExecuting resolves the default connection while the
+    // hook is attached, so an unconfigured default makes it throw.
+    config()->set('database.default', 'missing');
+
+    $output = captureProviderErrorLog(function () {
+        (new LaroncladServiceProvider(app()))->boot();
+    });
+
+    expect($output)->toContain('could not install the database hook: InvalidArgumentException');
+    // Only the exception class is reported, never its message.
+    expect($output)->not->toContain('missing');
+    // The HTTP hook is still installed after the database hook failed
+    // (one from the first boot, one from this boot).
+    expect(Http::getGlobalMiddleware())->toHaveCount(2);
 });

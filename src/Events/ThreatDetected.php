@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Laronclad\Events;
 
-use Illuminate\Foundation\Events\Dispatchable;
 use Laronclad\Analysis\ThreatMatch;
 
 /**
@@ -13,11 +12,13 @@ use Laronclad\Analysis\ThreatMatch;
  * Users can listen for this event to forward findings to a
  * dedicated system (Slack, Sentry, SIEM). It is not fired for
  * deduplicated findings.
+ *
+ * Listen with Event::listen(ThreatDetected::class, ...). The event
+ * is plain on purpose: it has no dependency on Laravel's Foundation
+ * layer.
  */
 final readonly class ThreatDetected
 {
-    use Dispatchable;
-
     /**
      * @param  array<array-key, mixed>  $context
      */

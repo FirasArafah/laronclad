@@ -26,6 +26,7 @@ use Laronclad\Support\Whitelist;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 final class LaroncladServiceProvider extends ServiceProvider
 {
@@ -109,11 +110,35 @@ final class LaroncladServiceProvider extends ServiceProvider
         }
 
         if (config('laronclad.database.enabled', true)) {
-            $this->app->make(DatabaseInterceptor::class)->register();
+            $this->installHook('database', function (): void {
+                $this->app->make(DatabaseInterceptor::class)->register();
+            });
         }
 
         if (config('laronclad.http.enabled', true)) {
-            $this->app->make(HttpInterceptor::class)->register();
+            $this->installHook('http', function (): void {
+                $this->app->make(HttpInterceptor::class)->register();
+            });
+        }
+    }
+
+    /**
+     * Install one monitoring hook without letting a failure escape.
+     *
+     * Fail-open applies at boot too. If a hook cannot be attached
+     * (for example the default database connection is misconfigured,
+     * which DB::beforeExecuting resolves immediately), the app still
+     * starts and the remaining hooks are still installed. Only the
+     * exception class is reported, never its message.
+     *
+     * @param  callable(): void  $install
+     */
+    private function installHook(string $name, callable $install): void
+    {
+        try {
+            $install();
+        } catch (Throwable $e) {
+            error_log('[laronclad] could not install the '.$name.' hook: '.$e::class);
         }
     }
 
