@@ -18,6 +18,14 @@ use Throwable;
  * that knows the log format. Failures are swallowed: a monitoring
  * tool must never take down the application.
  *
+ * Request metadata (ip, method, route, user id) is added to every
+ * finding so deduplication can tell sources apart. Values passed
+ * by the caller win over collected ones. Pass null for
+ * $requestContext to turn collection off.
+ *
+ * Both the log line and the ThreatDetected event carry the
+ * redacted context, never the raw one.
+ *
  * Failure reports go to PHP's error log with the exception class
  * only. Exception messages can carry connection strings or SQL
  * bindings, so they are never copied into logs.
@@ -29,6 +37,7 @@ final readonly class SafeLogger
         private Redactor $redactor,
         private ?Dispatcher $events = null,
         private int $deduplicationWindow = 60,
+        private ?RequestContext $requestContext = new RequestContext,
     ) {}
 
     /**
@@ -37,6 +46,8 @@ final readonly class SafeLogger
     public function log(ThreatMatch $match, array $context = []): void
     {
         try {
+            $context = $this->withRequestContext($context);
+
             if ($this->shouldSkip($match, $context)) {
                 return;
             }
@@ -45,6 +56,21 @@ final readonly class SafeLogger
         } catch (Throwable $e) {
             error_log('[laronclad] log write failed: '.$e::class);
         }
+    }
+
+    /**
+     * Add collected request metadata. Caller-supplied keys win.
+     *
+     * @param  array<array-key, mixed>  $context
+     * @return array<array-key, mixed>
+     */
+    private function withRequestContext(array $context): array
+    {
+        if ($this->requestContext === null) {
+            return $context;
+        }
+
+        return $context + $this->requestContext->collect();
     }
 
     /**
@@ -92,13 +118,15 @@ final readonly class SafeLogger
      */
     private function write(ThreatMatch $match, array $context): void
     {
+        $redacted = $this->redactor->redact($context);
+
         $payload = [
             'time' => gmdate('Y-m-d\TH:i:s\Z'),
             'type' => $match->type->value,
             'confidence' => $match->confidence->value,
             'rule' => $match->rule,
             'description' => $match->description,
-            'context' => $this->redactor->redact($context),
+            'context' => $redacted,
         ];
 
         $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -112,7 +140,8 @@ final readonly class SafeLogger
         $this->logger->info($json);
 
         // Only dispatch after a successful write. Deduplicated
-        // findings never reach this point.
-        $this->events?->dispatch(new ThreatDetected($match, $context));
+        // findings never reach this point. Listeners receive the
+        // redacted context, since they forward it to third parties.
+        $this->events?->dispatch(new ThreatDetected($match, $redacted));
     }
 }
