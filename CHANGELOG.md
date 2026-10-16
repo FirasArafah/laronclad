@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0-alpha] - 2026-10-14
-
 First public pre-release. Dry-run only. No blocking.
 
 ### Added
@@ -25,23 +23,40 @@ First public pre-release. Dry-run only. No blocking.
   - `PrivateIpRule` (SSRF)
   - `MetadataEndpointRule` (SSRF)
   - `DangerousCommandRule` (process execution)
-- `ThreatAnalyzer` engine with per-type rule filtering.
+- `ThreatAnalyzer` engine with per-type rule filtering and per-rule
+  failure isolation.
 - `Redactor` for removing sensitive values from log context.
-- `SafeLogger` with JSON lines format and deduplication.
-- `DatabaseInterceptor` using `DB::beforeExecuting`.
+- `RequestContext` adding client IP, HTTP method, route and user id to
+  findings.
+- `SafeLogger` with JSON payloads and per-source deduplication.
+- `DatabaseInterceptor` using `DB::beforeExecuting`, on the default
+  connection.
 - `HttpInterceptor` using `Http::globalRequestMiddleware`.
-- `ProcessGuard` for command inspection.
-- `Whitelist` support for routes and Artisan commands.
-- `ThreatDetected` event.
+- `ThreatDetected` event, carrying the redacted context.
 - `Laronclad` entry point and Facade.
-- Artisan commands: `laronclad:status`, `laronclad:clear-logs`.
+- Artisan commands: `laronclad:status`, `laronclad:clear-logs`. They
+  stay available when monitoring is disabled.
 
 ### Security
 
 - Fail-open by default: Laronclad never takes down the application.
+  Hook installation, rule evaluation, request context, deduplication
+  and log writes each contain their own failures.
+- Failures are reported to PHP's error log by exception class only,
+  never by message, so connection strings and SQL do not leak.
 - No `unserialize()` on untrusted data.
-- Regex patterns tested against ReDoS.
-- Sensitive values redacted before logging.
+- Sensitive values are redacted before logging and before the event
+  is fired. Only metadata is logged, never query text or bindings.
+- The `UnionSelectRule` pattern has a long-input timing test.
+  PCRE backtrack-limit handling is not implemented yet.
 
-[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...HEAD
-[0.1.0-alpha]: https://github.com/FirasArafah/laronclad/releases/tag/v0.1.0-alpha
+### Known limitations
+
+- `ProcessGuard` exists but is not hooked into Laravel, so process
+  execution is not monitored. The `process.enabled` option is reserved.
+- The whitelist option is accepted but not applied.
+- Only the default database connection is monitored, and only the
+  first 8 KB of each query is analyzed.
+- Detection rules are heuristic and can be bypassed; see the README.
+
+[Unreleased]: https://github.com/FirasArafah/laronclad/commits/main
