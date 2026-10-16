@@ -11,9 +11,18 @@ use Laronclad\Logging\SafeLogger;
 /**
  * Inspects shell commands before execution.
  *
+ * Status in v0.1: NOT HOOKED. Nothing in the package calls this
+ * class automatically, and the "process.enabled" config option is
+ * reserved. No public Laravel extension point for observing Process
+ * calls was identified, and the package only uses public ones.
+ *
+ * The class is bound in the container, so application code can run
+ * it by hand where it launches commands:
+ *
+ *     app(ProcessGuard::class)->inspect($command);
+ *
  * The guard itself does not run or block commands. It analyzes the
- * command string and hands matches to the logger. Wiring to Laravel's
- * Process facade is done by the service provider.
+ * command string and hands matches to the logger.
  *
  * Both string and array command forms are supported. Array commands
  * are joined with spaces for analysis only; the original array is
