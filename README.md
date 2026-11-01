@@ -99,19 +99,14 @@ variable:
 
 ## What gets logged
 
-By default findings go to `storage/logs/laronclad.log`. The file is
-not rotated, so keep an eye on its size.
+By default findings go to `storage/logs/laronclad.log`, one JSON
+object per line, so the file works with `jq` and log shippers. The
+file is not rotated, so keep an eye on its size. If you set your own
+log channel, that channel's formatter decides how lines look.
 
-Each entry carries a JSON payload like this:
+Each line looks like this:
 
-    {
-      "time": "2026-10-16T10:22:01Z",
-      "type": "sqli",
-      "confidence": "medium",
-      "rule": "union_select",
-      "description": "UNION SELECT pattern found in query",
-      "context": {"query_length": 74, "ip": "203.0.113.5", "method": "GET", "route": "users.index"}
-    }
+    {"time":"2026-10-16T10:22:01Z","type":"sqli","confidence":"medium","rule":"union_select","description":"UNION SELECT pattern found in query","context":{"query_length":74,"ip":"203.0.113.5","method":"GET","route":"users.index"}}
 
 Only metadata is logged. Query text, query bindings, request bodies,
 headers and cookies are not. The target host is logged for outbound

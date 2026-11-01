@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha] - 2026-10-16
+
 First public pre-release. Dry-run only. No blocking.
 
 ### Added
@@ -29,6 +31,8 @@ First public pre-release. Dry-run only. No blocking.
 - `RequestContext` adding client IP, HTTP method, route and user id to
   findings.
 - `SafeLogger` with JSON payloads and per-source deduplication.
+- Default log file `storage/logs/laronclad.log` with one JSON object
+  per line (`JsonLineFormatter`).
 - `DatabaseInterceptor` using `DB::beforeExecuting`, on the default
   connection.
 - `HttpInterceptor` using `Http::globalRequestMiddleware`.
@@ -57,6 +61,8 @@ First public pre-release. Dry-run only. No blocking.
 - The whitelist option is accepted but not applied.
 - Only the default database connection is monitored, and only the
   first 8 KB of each query is analyzed.
+- The default log file is not rotated.
 - Detection rules are heuristic and can be bypassed; see the README.
 
-[Unreleased]: https://github.com/FirasArafah/laronclad/commits/main
+[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/FirasArafah/laronclad/releases/tag/v0.1.0-alpha
