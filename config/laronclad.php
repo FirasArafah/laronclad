@@ -43,7 +43,8 @@ return [
     /*
      * Database monitoring.
      *
-     * Covers the default database connection only.
+     * Covers every database connection, including ones Laravel
+     * establishes after boot.
      *
      * max_input_length is in bytes (default 1 MiB). Queries up to this
      * size are analyzed whole. Longer queries have their first and last

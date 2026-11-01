@@ -6,9 +6,11 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 use Laronclad\Analysis\ThreatAnalyzer;
+use Laronclad\Database\DatabaseInterceptor;
 use Laronclad\Laronclad;
 use Laronclad\LaroncladServiceProvider;
 use Laronclad\Logging\SafeLogger;
+use Laronclad\Tests\TestCase;
 
 /**
  * Runs the callback and returns whatever it wrote to PHP's error log.
@@ -97,10 +99,11 @@ it('keeps commands but installs no hooks when disabled', function () {
     $_SERVER['LARONCLAD_ENABLED'] = 'false';
 
     try {
-        // rebootApplication() is defined on Laronclad\Tests\TestCase,
-        // but PHPStan types Pest's $this as the bare PHPUnit TestCase.
-        /** @phpstan-ignore-next-line method.notFound */
-        $this->rebootApplication();
+        // Pest types $this as the bare framework TestCase, which has no
+        // rebootApplication(). This package's base TestCase does.
+        /** @var TestCase $case */
+        $case = $this;
+        $case->rebootApplication();
 
         expect(config('laronclad.enabled'))->toBeFalse();
         expect(Http::getGlobalMiddleware())->toBe([]);
@@ -115,18 +118,28 @@ it('keeps commands but installs no hooks when disabled', function () {
 });
 
 it('does not break boot when the database hook cannot be installed', function () {
-    // DB::beforeExecuting resolves the default connection while the
-    // hook is attached, so an unconfigured default makes it throw.
+    app()->bind(DatabaseInterceptor::class, static fn () => throw new RuntimeException('secret-detail'));
+
+    $output = captureProviderErrorLog(function () {
+        (new LaroncladServiceProvider(app()))->boot();
+    });
+
+    expect($output)->toContain('could not install the database hook: RuntimeException');
+    // Only the exception class is reported, never its message.
+    expect($output)->not->toContain('secret-detail');
+    // The HTTP hook is still installed after the database hook failed
+    // (one from the first boot, one from this boot).
+    expect(Http::getGlobalMiddleware())->toHaveCount(2);
+});
+
+it('does not need a working database connection to boot', function () {
+    // Hooking does not resolve a connection, so a broken default
+    // connection must not make boot report anything.
     config()->set('database.default', 'missing');
 
     $output = captureProviderErrorLog(function () {
         (new LaroncladServiceProvider(app()))->boot();
     });
 
-    expect($output)->toContain('could not install the database hook: InvalidArgumentException');
-    // Only the exception class is reported, never its message.
-    expect($output)->not->toContain('missing');
-    // The HTTP hook is still installed after the database hook failed
-    // (one from the first boot, one from this boot).
-    expect(Http::getGlobalMiddleware())->toHaveCount(2);
+    expect($output)->not->toContain('could not install');
 });
