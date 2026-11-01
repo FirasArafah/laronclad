@@ -19,6 +19,7 @@ use Laronclad\Console\ClearLogsCommand;
 use Laronclad\Console\StatusCommand;
 use Laronclad\Database\DatabaseInterceptor;
 use Laronclad\Http\HttpInterceptor;
+use Laronclad\Logging\JsonLineFormatter;
 use Laronclad\Logging\Redactor;
 use Laronclad\Logging\SafeLogger;
 use Laronclad\Process\ProcessGuard;
@@ -185,6 +186,11 @@ final class LaroncladServiceProvider extends ServiceProvider
         return $result;
     }
 
+    /**
+     * The default destination is a dedicated file with one JSON
+     * object per line. A user-configured channel keeps its own
+     * formatter.
+     */
     private function resolveLogger(): LoggerInterface
     {
         $channel = config('laronclad.logging.channel');
@@ -193,11 +199,13 @@ final class LaroncladServiceProvider extends ServiceProvider
             return $this->app->make('log')->channel($channel);
         }
 
-        return new Logger('laronclad', [
-            new StreamHandler(
-                storage_path('logs/laronclad.log'),
-                Logger::INFO,
-            ),
-        ]);
+        $handler = new StreamHandler(
+            storage_path('logs/laronclad.log'),
+            Logger::INFO,
+        );
+
+        $handler->setFormatter(new JsonLineFormatter);
+
+        return new Logger('laronclad', [$handler]);
     }
 }
