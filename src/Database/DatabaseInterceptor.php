@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Laronclad\Database;
 
 use Illuminate\Support\Facades\DB;
+use Laronclad\Analysis\InputLimit;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
@@ -17,6 +18,10 @@ use Throwable;
  * query string before any driver runs it. We inspect the query
  * against the SQLi rules and hand matches to the logger.
  *
+ * Queries up to the size limit are analyzed whole. Longer queries
+ * have their first and last halves analyzed and always produce an
+ * "oversized_input" finding, so padding cannot hide a payload.
+ *
  * v0.1 does not block. It only logs.
  *
  * Fail-open: any failure inside inspection is swallowed. A
@@ -24,10 +29,12 @@ use Throwable;
  */
 final readonly class DatabaseInterceptor
 {
+    public const DEFAULT_MAX_INPUT_LENGTH = 1_048_576;
+
     public function __construct(
         private ThreatAnalyzer $analyzer,
         private SafeLogger $logger,
-        private int $maxInputLength = 8192,
+        private int $maxInputLength = self::DEFAULT_MAX_INPUT_LENGTH,
     ) {}
 
     /**
@@ -51,11 +58,18 @@ final readonly class DatabaseInterceptor
     public function inspect(string $query): void
     {
         try {
-            $truncated = strlen($query) > $this->maxInputLength
-                ? substr($query, 0, $this->maxInputLength)
-                : $query;
+            // A zero or negative limit is a misconfiguration. Falling
+            // back keeps SQL monitoring from being switched off by it.
+            $limit = $this->maxInputLength > 0
+                ? $this->maxInputLength
+                : self::DEFAULT_MAX_INPUT_LENGTH;
 
-            $matches = $this->analyzer->analyze($truncated, ThreatType::SqlInjection);
+            $matches = InputLimit::analyze(
+                $this->analyzer,
+                $query,
+                $limit,
+                ThreatType::SqlInjection,
+            );
 
             foreach ($matches as $match) {
                 $this->logger->log($match, [

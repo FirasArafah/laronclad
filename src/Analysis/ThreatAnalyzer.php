@@ -20,9 +20,20 @@ use Throwable;
  * Fail-open: a rule that throws is skipped and reported to PHP's
  * error log by class names only. The remaining rules still run, so
  * one faulty rule cannot disable all detection or break the caller.
+ *
+ * Failed pattern matching is not silence: when a rule finds no match
+ * but PCRE reports an error (invalid data, backtrack or JIT limit),
+ * the input defeated the matcher. That is reported as one
+ * "analysis_limit" finding, so crafting input that makes a regex
+ * fail cannot be used to hide a payload.
  */
 final readonly class ThreatAnalyzer
 {
+    /**
+     * Rule name of the finding reported when pattern matching failed.
+     */
+    public const LIMIT_RULE = 'analysis_limit';
+
     /**
      * @param  list<RuleInterface>  $rules
      */
@@ -36,6 +47,7 @@ final readonly class ThreatAnalyzer
     public function analyze(string $input, ThreatType $type): array
     {
         $matches = [];
+        $limitReached = false;
 
         foreach ($this->rules as $rule) {
             try {
@@ -43,14 +55,30 @@ final readonly class ThreatAnalyzer
                     continue;
                 }
 
+                // A successful call clears any PCRE error left behind by
+                // earlier code, so an error seen after the rule ran
+                // belongs to that rule.
+                preg_match('/^/', '');
+
                 $match = $rule->matches($input);
 
                 if ($match !== null) {
                     $matches[] = $match;
+                } elseif (preg_last_error() !== PREG_NO_ERROR) {
+                    $limitReached = true;
                 }
             } catch (Throwable $e) {
                 error_log('[laronclad] rule failed: '.get_debug_type($rule).' threw '.$e::class);
             }
+        }
+
+        if ($limitReached) {
+            $matches[] = new ThreatMatch(
+                type: $type,
+                confidence: ConfidenceLevel::Medium,
+                rule: self::LIMIT_RULE,
+                description: 'Pattern matching failed on this input (limit reached or malformed data)',
+            );
         }
 
         return $matches;
