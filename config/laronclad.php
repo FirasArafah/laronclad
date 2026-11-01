@@ -43,12 +43,17 @@ return [
     /*
      * Database monitoring.
      *
-     * Covers the default database connection only. Only the first
-     * max_input_length bytes of each query are analyzed.
+     * Covers the default database connection only.
+     *
+     * max_input_length is in bytes (default 1 MiB). Queries up to this
+     * size are analyzed whole. Longer queries have their first and last
+     * halves analyzed and always produce a low-confidence
+     * "oversized_input" finding, because the middle was not inspected.
+     * A zero or negative value falls back to the default.
      */
     'database' => [
         'enabled' => env('LARONCLAD_DATABASE_ENABLED', true),
-        'max_input_length' => (int) env('LARONCLAD_DATABASE_MAX_INPUT', 8192),
+        'max_input_length' => (int) env('LARONCLAD_DATABASE_MAX_INPUT', 1_048_576),
     ],
 
     /*

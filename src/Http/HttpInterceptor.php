@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Laronclad\Http;
 
 use Illuminate\Support\Facades\Http;
+use Laronclad\Analysis\InputLimit;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
@@ -23,11 +24,17 @@ use Throwable;
  * checked here because they are usually application-controlled and
  * not attacker-controlled in an SSRF sense.
  *
+ * A host longer than 255 characters cannot be a valid hostname or
+ * IP literal, so it is reported as an "oversized_input" finding
+ * instead of being matched. Only its length is logged.
+ *
  * Fail-open: any failure inside inspection is swallowed. A
  * monitoring tool must never break the application's own requests.
  */
 final readonly class HttpInterceptor
 {
+    private const MAX_HOST_LENGTH = 255;
+
     public function __construct(
         private ThreatAnalyzer $analyzer,
         private SafeLogger $logger,
@@ -57,6 +64,14 @@ final readonly class HttpInterceptor
             $host = parse_url($url, PHP_URL_HOST);
 
             if (! is_string($host) || $host === '') {
+                return;
+            }
+
+            if (strlen($host) > self::MAX_HOST_LENGTH) {
+                $this->logger->log(InputLimit::oversizedFinding(ThreatType::Ssrf), [
+                    'host_length' => strlen($host),
+                ]);
+
                 return;
             }
 

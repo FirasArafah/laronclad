@@ -40,7 +40,17 @@ final class DangerousCommandRule implements RuleInterface
     public function matches(string $input): ?ThreatMatch
     {
         foreach (self::PATTERNS as $pattern) {
-            if (preg_match($pattern, $input) === 1) {
+            $result = preg_match($pattern, $input);
+
+            if ($result === false) {
+                // Stop without running another pattern. A later
+                // successful preg_match would clear the PCRE error
+                // state, and the analyzer reads that state to report
+                // that this input defeated the matcher.
+                return null;
+            }
+
+            if ($result === 1) {
                 return new ThreatMatch(
                     type: $this->type(),
                     confidence: $this->confidence(),
