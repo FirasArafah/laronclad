@@ -106,7 +106,7 @@ final class LaroncladServiceProvider extends ServiceProvider
             ]);
         }
 
-        if (! config('laronclad.enabled', true)) {
+        if (!config('laronclad.enabled', true)) {
             return;
         }
 
