@@ -80,3 +80,62 @@ it('handles very long input without hanging', function () {
 
     expect($elapsed)->toBeLessThan(0.5);
 });
+
+it('matches comments between the words', function (string $query) {
+    expect(rule()->matches($query))->not->toBeNull();
+})->with([
+    'SELECT 1 UNION/**/SELECT 2',
+    'SELECT 1 UNION/*padding that is long*/SELECT 2',
+    'SELECT 1 UNION /**/ ALL /**/ SELECT 2',
+    "SELECT 1 UNION -- note\nSELECT 2",
+    "SELECT 1 UNION # note\nSELECT 2",
+]);
+
+it('matches ALL, DISTINCT and opening parentheses', function (string $query) {
+    expect(rule()->matches($query))->not->toBeNull();
+})->with([
+    'SELECT 1 UNION(SELECT 2)',
+    'SELECT 1 UNION ALL(SELECT 2)',
+    'SELECT 1 UNION DISTINCT SELECT 2',
+    'SELECT 1 UNION ((SELECT 2))',
+    'SELECT 1 UNION ( ( SELECT 2 ) )',
+    '(SELECT 1)UNION(SELECT 2)',
+    "SELECT 1 UNION\r\nSELECT 2",
+]);
+
+it('matches MySQL and MariaDB versioned comments', function (string $query) {
+    expect(rule()->matches($query))->not->toBeNull();
+})->with([
+    'SELECT 1 /*!50000UNION*/ /*!50000SELECT*/ 2',
+    'SELECT 1 /*!UNION*/ /*!SELECT*/ 2',
+    'SELECT 1 /*M!100100 UNION SELECT*/ 2',
+    'SELECT 1 UNION/*!50000SELECT*/ 2',
+]);
+
+it('still matches when a string holds a comment marker', function (string $query) {
+    expect(rule()->matches($query))->not->toBeNull();
+})->with([
+    "SELECT '#' UNION/**/SELECT 1",
+    "SELECT '/*' UNION SELECT 1, '*/'",
+    "x = '--' UNION SELECT 1",
+]);
+
+it('does not match words that only look like it', function (string $query) {
+    expect(rule()->matches($query))->toBeNull();
+})->with([
+    'SELECT 1 UNION/**/ 2',
+    'SELECT 1 UNION /**/ FROM t',
+    'SELECT unionselect FROM t',
+    'SELECT a_union SELECT',
+    'SELECT 1 UNION ALLSELECT 2',
+    'SELECT 1 UNION SELECTION',
+    'SELECT union_col, select_col FROM t',
+]);
+
+it('handles a flood of unterminated comments without hanging', function () {
+    $start = microtime(true);
+
+    rule()->matches(str_repeat('union /*', 100000));
+
+    expect(microtime(true) - $start)->toBeLessThan(0.5);
+});

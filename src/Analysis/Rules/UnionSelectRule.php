@@ -8,6 +8,7 @@ use Laronclad\Analysis\ConfidenceLevel;
 use Laronclad\Analysis\RuleInterface;
 use Laronclad\Analysis\ThreatMatch;
 use Laronclad\Analysis\ThreatType;
+use Laronclad\Support\SqlText;
 
 /**
  * Detects UNION SELECT patterns in a query.
@@ -17,24 +18,26 @@ use Laronclad\Analysis\ThreatType;
  * applications build UNION queries legitimately. That is why the
  * confidence is Medium, not High.
  *
- * The regex is written to avoid catastrophic backtracking. It has
- * no nested quantifiers and no optional groups that could overlap.
- * Input is length-limited before matching by the caller.
+ * Covered spellings: any whitespace between the words, ALL or
+ * DISTINCT, opening parentheses (UNION(SELECT, UNION ALL (SELECT),
+ * and comments in between, including MySQL versioned comments.
+ * Comments are handled by SqlText, which also reads the raw text,
+ * so a comment marker inside a string cannot hide a payload.
+ *
+ * The pattern has no nested quantifiers and every repetition is
+ * possessive, so it cannot backtrack catastrophically.
+ *
+ * Word boundaries prevent matching substrings like "reunion" or
+ * "selection". Text inside a comment can still match, because the
+ * raw text is checked as well.
  */
 final class UnionSelectRule implements RuleInterface
 {
-    /**
-     * Matches "union" followed by optional whitespace, optional
-     * "all", optional whitespace, then "select".
-     *
-     * Word boundaries prevent matching substrings like "reunion"
-     * or "selection".
-     */
-    private const PATTERN = '/\bunion\b\s+(?:all\s+)?\bselect\b/i';
+    private const PATTERN = '/(?<![a-z_])union(?![a-z0-9_$])\s*+(?:(?:all|distinct)(?![a-z0-9_$])\s*+)?(?:\(\s*+)*+select(?![a-z0-9_$])/i';
 
     public function matches(string $input): ?ThreatMatch
     {
-        if (preg_match(self::PATTERN, $input) !== 1) {
+        if (SqlText::matches(self::PATTERN, $input) !== true) {
             return null;
         }
 
