@@ -9,6 +9,7 @@ use Laronclad\Analysis\InputLimit;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
+use Laronclad\Support\MonitoringScope;
 use Psr\Http\Message\RequestInterface;
 use Throwable;
 
@@ -28,6 +29,9 @@ use Throwable;
  * IP literal, so it is reported as an "oversized_input" finding
  * instead of being matched. Only its length is logged.
  *
+ * Requests made by a whitelisted route or Artisan command are not
+ * inspected, when a MonitoringScope is given.
+ *
  * Fail-open: any failure inside inspection is swallowed. A
  * monitoring tool must never break the application's own requests.
  */
@@ -38,6 +42,7 @@ final readonly class HttpInterceptor
     public function __construct(
         private ThreatAnalyzer $analyzer,
         private SafeLogger $logger,
+        private ?MonitoringScope $scope = null,
     ) {}
 
     /**
@@ -61,6 +66,10 @@ final readonly class HttpInterceptor
     public function inspect(string $url): void
     {
         try {
+            if ($this->scope?->isExcluded() === true) {
+                return;
+            }
+
             $host = parse_url($url, PHP_URL_HOST);
 
             if (! is_string($host) || $host === '') {

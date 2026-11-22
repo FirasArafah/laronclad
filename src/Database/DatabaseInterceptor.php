@@ -12,6 +12,7 @@ use Laronclad\Analysis\InputLimit;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
+use Laronclad\Support\MonitoringScope;
 use Throwable;
 use WeakMap;
 
@@ -29,6 +30,9 @@ use WeakMap;
  * Queries up to the size limit are analyzed whole. Longer queries
  * have their first and last halves analyzed and always produce an
  * "oversized_input" finding, so padding cannot hide a payload.
+ *
+ * Queries made by a whitelisted route or Artisan command are not
+ * inspected, when a MonitoringScope is given.
  *
  * v0.1 does not block. It only logs.
  *
@@ -51,6 +55,7 @@ final readonly class DatabaseInterceptor
         private ThreatAnalyzer $analyzer,
         private SafeLogger $logger,
         private int $maxInputLength = self::DEFAULT_MAX_INPUT_LENGTH,
+        private ?MonitoringScope $scope = null,
     ) {
         $this->hooked = new WeakMap;
     }
@@ -107,6 +112,10 @@ final readonly class DatabaseInterceptor
     public function inspect(string $query): void
     {
         try {
+            if ($this->scope?->isExcluded() === true) {
+                return;
+            }
+
             // A zero or negative limit is a misconfiguration. Falling
             // back keeps SQL monitoring from being switched off by it.
             $limit = $this->maxInputLength > 0
