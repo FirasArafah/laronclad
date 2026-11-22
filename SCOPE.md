@@ -10,7 +10,7 @@ This document describes where Laronclad is going and what it will never become. 
 
 ## Status
 
-**Version 0.1.1-alpha.** This is an early pre-release. The sections after this one describe the intended scope, not the current feature set.
+**Version 0.1.2-alpha.** This is an early pre-release. The sections after this one describe the intended scope, not the current feature set.
 
 | Area | Intended scope | Today |
 |---|---|---|

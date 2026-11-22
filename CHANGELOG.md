@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1-alpha] - 2026-11-22
+## [0.1.2-alpha] - 2026-11-22
+
+The same code as 0.1.1-alpha, published again under a new version number.
+The commit history was rewritten to replace the maintainer's personal email
+address in commit metadata. Packagist does not allow an existing version to
+point to a rewritten commit, so 0.1.1-alpha is withdrawn and replaced by
+this version. Install this version.
+
+No code, behavior or dependency changes.
+
+## [0.1.1-alpha] - 2026-11-22 [YANKED]
+
+Withdrawn and replaced by 0.1.2-alpha, which contains the same code (see
+above). The changes below are part of 0.1.2-alpha.
 
 First installable public pre-release. It contains everything listed under
-0.1.0-alpha below, plus the changes here. Install this version, not
-0.1.0-alpha.
+0.1.0-alpha below, plus the changes here.
 
 ### Fixed
 
@@ -43,7 +55,7 @@ First installable public pre-release. It contains everything listed under
 ## [0.1.0-alpha] - 2026-11-22 [YANKED]
 
 Withdrawn. Packagist serves an older, incomplete commit under this version
-number and does not allow it to be replaced. Use 0.1.1-alpha.
+number and does not allow it to be replaced. Use 0.1.2-alpha.
 
 First public pre-release. Detection only. No blocking.
 
@@ -106,6 +118,7 @@ First public pre-release. Detection only. No blocking.
 - No benchmark suite yet. Not tested under Octane or other long-running
   servers.
 
-[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.1-alpha...HEAD
+[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.2-alpha...HEAD
+[0.1.2-alpha]: https://github.com/FirasArafah/laronclad/compare/v0.1.1-alpha...v0.1.2-alpha
 [0.1.1-alpha]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...v0.1.1-alpha
 [0.1.0-alpha]: https://github.com/FirasArafah/laronclad/releases/tag/v0.1.0-alpha

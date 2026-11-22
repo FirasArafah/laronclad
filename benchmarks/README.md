@@ -18,7 +18,7 @@ fails if the "on" run did not actually log the attack query, or if the
 
 ## Results
 
-Laronclad 0.1.1-alpha, PHP 8.2.12 (Windows, ZTS, OPcache and JIT off),
+Laronclad 0.1.1-alpha (the same code as 0.1.2-alpha), PHP 8.2.12 (Windows, ZTS, OPcache and JIT off),
 Laravel 12.70, Intel Core i7-12700H. Your numbers will differ. Compare
 runs on one machine, not across machines. Repeated runs here differed by
 up to about 3 µs per row.

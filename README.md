@@ -20,7 +20,7 @@ intended scope, and what Laronclad will never become, is in
 
 ## Status
 
-**Pre-release (0.1.1-alpha).** The API may change between minor versions
+**Pre-release (0.1.2-alpha).** The API may change between minor versions
 until 1.0. Detection is heuristic, so expect both missed attacks and false
 positives. [SCOPE.md](SCOPE.md) describes where the project is going, and
 its Status table shows what exists today. Please read
@@ -54,7 +54,7 @@ matters, and [send feedback](#feedback).
 
 This is a pre-release, so name the version explicitly:
 
-    composer require firasarafah/laronclad:0.1.1-alpha
+    composer require firasarafah/laronclad:0.1.2-alpha
 
 Optionally publish the config file:
 
