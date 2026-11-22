@@ -1,6 +1,6 @@
 {
     "name": "firasarafah/laronclad",
-    "description": "Runtime monitoring for Laravel applications: logs suspicious SQL queries, outbound requests and commands. Dry-run only.",
+    "description": "Runtime security sensor for Laravel: observes SQL queries and outbound requests and logs suspicious patterns. Detection only, never blocks.",
     "keywords": [
         "laravel",
         "security",

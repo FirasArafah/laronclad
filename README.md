@@ -5,23 +5,27 @@
 [![Static Analysis](https://img.shields.io/github/actions/workflow/status/FirasArafah/laronclad/static-analysis.yml?branch=main&label=static%20analysis&style=flat-square)](https://github.com/FirasArafah/laronclad/actions/workflows/static-analysis.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/firasarafah/laronclad.svg?style=flat-square)](https://packagist.org/packages/firasarafah/laronclad)
 
-Runtime monitoring for Laravel applications.
+A runtime security sensor for Laravel.
 
 Laronclad watches what your app does while it runs and logs what looks like
 an attack: SQL queries that resemble injection, and outbound HTTP requests
-aimed at internal or cloud-metadata addresses. It runs in dry-run mode. It
-logs findings and fires an event, and it never blocks anything.
+aimed at internal or cloud-metadata addresses. It observes, detects and
+reports. It logs findings and fires an event, and it never blocks anything.
 
 **Laronclad is not a WAF replacement.** It sees what your app does after a
 request arrives, not what happens before. It does not protect against an
-attacker with code execution. Use it as one layer among several.
+attacker with code execution. Use it as one layer among several. The full
+intended scope, and what Laronclad will never become, is in
+[SCOPE.md](SCOPE.md).
 
 ## Status
 
 **Pre-release (0.1.0-alpha).** The API may change between minor versions
 until 1.0. Detection is heuristic, so expect both missed attacks and false
-positives. Please read [Known limitations](#known-limitations) before you
-run it anywhere that matters, and [send feedback](#feedback).
+positives. [SCOPE.md](SCOPE.md) describes where the project is going, and
+its Status table shows what exists today. Please read
+[Known limitations](#known-limitations) before you run it anywhere that
+matters, and [send feedback](#feedback).
 
 ## What this release does
 
@@ -38,9 +42,12 @@ run it anywhere that matters, and [send feedback](#feedback).
 
 ## What this release does not do
 
-- **Block anything.** Dry-run only.
+- **Block anything.** Laronclad detects and reports. It does not block, and
+  no blocking is planned.
 - **Monitor process execution automatically.** The `ProcessGuard` class
   exists, but nothing calls it for you. See [Inspect a command by hand](#inspect-a-command-by-hand).
+- **Explain findings in detail yet.** A finding carries its rule, type,
+  confidence and request context, but no separate "why" text.
 - Replace a WAF, SAST, DAST or dependency scanner.
 
 ## Installation
@@ -78,7 +85,9 @@ channel, clear it with that channel's tools.
         // $event->context redacted metadata, safe to forward
     });
 
-The event is not fired for deduplicated findings.
+The event is not fired for deduplicated findings. It is the integration
+point for reacting to findings: forward them to your SIEM, alert on them or
+store them. Laronclad itself takes no action.
 
 ### Exclude routes and commands
 
@@ -142,6 +151,9 @@ Each line looks like this:
 
     {"time":"2026-11-22T10:22:01Z","type":"sqli","confidence":"medium","rule":"union_select","description":"UNION SELECT pattern found in query","context":{"query_length":74,"ip":"203.0.113.5","method":"GET","route":"users.index"}}
 
+The format is consistent but not yet versioned, so fields may change before
+1.0.
+
 Only metadata is logged. Query text, query bindings, request bodies,
 headers and cookies are not. The context carries the size of the query, the
 target host of an outbound request, and request metadata: client IP, HTTP
@@ -165,7 +177,7 @@ variable:
 | Variable | Default | Meaning |
 |---|---|---|
 | `LARONCLAD_ENABLED` | `true` | Turn all monitoring hooks on or off |
-| `LARONCLAD_MODE` | `dry-run` | Only `dry-run` exists in this release |
+| `LARONCLAD_MODE` | `dry-run` | Only `dry-run` exists, and no other mode is planned |
 | `LARONCLAD_LOG_CHANNEL` | none | Your own log channel; none means a dedicated file |
 | `LARONCLAD_LOG_DEDUP_WINDOW` | `60` | Seconds; `0` turns deduplication off |
 | `LARONCLAD_DATABASE_ENABLED` | `true` | Monitor database queries |
@@ -186,8 +198,8 @@ The whitelist has no environment variable. Edit `whitelist.routes` and
   written.
 - **Bounded cost.** Every pattern is possessive or bounded, and the work per
   input is capped: 1 MiB per query, 8 KiB per command, 255 characters per
-  host. Normal input is analyzed in microseconds. Measure it in your own
-  environment.
+  host. Normal input is analyzed in microseconds. There is no benchmark
+  suite yet, so measure it in your own environment.
 - **Public extension points only.** Laronclad uses Laravel's documented
   hooks and nothing internal.
 
@@ -221,15 +233,17 @@ The whitelist has no environment variable. Edit `whitelist.routes` and
 
 ## Roadmap
 
-A rough plan, not a promise. Feedback decides the order.
+A rough plan, not a promise. Feedback decides the order. The boundaries
+Laronclad keeps, including that it will not block, are in
+[SCOPE.md](SCOPE.md).
 
-- **0.2**: false-positive tuning from real-world feedback, log rotation and
+- **0.2**: false-positive tuning from real-world feedback, a short "why" for
+  every finding, a versioned log and event format, log rotation and
   retention, an allowlist for hosts, rate-limited internal error reporting.
 - **0.3**: a documented way to observe process execution, queue job
   whitelisting, per-rule switches and a documented way to add your own rules.
-- **Later**: optional blocking, only for high-confidence findings and only
-  once there are false-positive numbers from real traffic to justify it.
-- **1.0**: a stable API.
+- **0.4**: Octane support and a benchmark suite for every detector.
+- **1.0**: a stable API and a stable event format.
 
 ## Feedback
 
@@ -250,6 +264,11 @@ from the Laravel team.
 ## Testing
 
     composer test
+
+## Scope
+
+See [SCOPE.md](SCOPE.md) for what Laronclad is, what it will become, and
+what it will never be.
 
 ## Changelog
 
