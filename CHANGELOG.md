@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0-alpha] - 2026-11-22
 
-First public pre-release. Dry-run only. No blocking.
+First public pre-release. Detection only. No blocking.
 
 ### Added
 
@@ -36,6 +36,8 @@ First public pre-release. Dry-run only. No blocking.
   when monitoring is disabled.
 - `ProcessGuard` for inspecting commands by hand.
 - `Laronclad` entry point and Facade.
+- `SCOPE.md`, which defines what Laronclad is, what it will not become, and
+  what exists today versus what is planned.
 
 ### Security
 
@@ -61,9 +63,12 @@ First public pre-release. Dry-run only. No blocking.
   called by hand, and the `process.enabled` option is reserved.
 - Only Laravel's HTTP client is observed, and only the request host is
   checked. Names are not resolved.
+- Findings carry a rule, type, confidence and request context, but no
+  separate explanation text. The log format is not versioned yet.
 - The default log file is not rotated, and internal failure lines are not
   rate limited.
-- Not tested under Octane or other long-running servers.
+- No benchmark suite yet. Not tested under Octane or other long-running
+  servers.
 
 [Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...HEAD
 [0.1.0-alpha]: https://github.com/FirasArafah/laronclad/releases/tag/v0.1.0-alpha
