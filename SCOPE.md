@@ -10,7 +10,7 @@ This document describes where Laronclad is going and what it will never become. 
 
 ## Status
 
-**Version 0.1.0-alpha.** This is an early pre-release. The sections after this one describe the intended scope, not the current feature set.
+**Version 0.1.1-alpha.** This is an early pre-release. The sections after this one describe the intended scope, not the current feature set.
 
 | Area | Intended scope | Today |
 |---|---|---|
@@ -19,7 +19,7 @@ This document describes where Laronclad is going and what it will never become. 
 | Process execution | Observe commands on supported execution paths | Manual only. `ProcessGuard` must be called by your code. Laravel has no public hook to observe it automatically. |
 | Detection engine | Rules, normalization, behavioral features, optional small local ML | Rules and normalization only. Behavioral features and ML are not implemented. |
 | Explainable findings | What, why, where, confidence, detector | Finding type, confidence, rule, description and request context (IP, method, route, user id when known). No separate "why" field and no call-site file or line yet. |
-| Performance contract | Bounded, benchmarked, regression-tested | Work per input is bounded and tested. No benchmark suite yet. |
+| Performance contract | Bounded, benchmarked, regression-tested | Work per input is bounded and tested. A benchmark script measures every detector and the end-to-end cost. No regression tracking in CI yet. |
 | Telemetry | Stable, versioned event format | Consistent JSON lines and a `ThreatDetected` event. The format is not versioned and is not yet a stability promise. |
 | Dashboard | Optional investigation interface | Not started. |
 | Extension points | Stable API for custom rules | Rules implement an interface, but a documented, stable custom-rule API does not exist yet. |

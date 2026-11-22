@@ -20,7 +20,7 @@ intended scope, and what Laronclad will never become, is in
 
 ## Status
 
-**Pre-release (0.1.0-alpha).** The API may change between minor versions
+**Pre-release (0.1.1-alpha).** The API may change between minor versions
 until 1.0. Detection is heuristic, so expect both missed attacks and false
 positives. [SCOPE.md](SCOPE.md) describes where the project is going, and
 its Status table shows what exists today. Please read
@@ -54,7 +54,7 @@ matters, and [send feedback](#feedback).
 
 This is a pre-release, so name the version explicitly:
 
-    composer require firasarafah/laronclad:0.1.0-alpha
+    composer require firasarafah/laronclad:0.1.1-alpha
 
 Optionally publish the config file:
 
@@ -158,12 +158,14 @@ Only metadata is logged. Query text, query bindings, request bodies,
 headers and cookies are not. The context carries the size of the query, the
 target host of an outbound request, and request metadata: client IP, HTTP
 method, route name (or URI pattern), and the user id when one is already
-known. Values under keys such as `password`, `token`, `secret`, `api_key`,
+known. Findings from an Artisan command, queue worker or scheduled task
+carry the command name (`"command":"queue:work"`) instead of the client IP,
+method and route, because there is no real request behind them. Values under keys such as `password`, `token`, `secret`, `api_key`,
 `authorization`, `cookie`, `session` and `csrf` are redacted before they
 are written and before the event is fired.
 
-The same finding from the same source (client IP, else user id) is logged
-once per window, 60 seconds by default. If the cache store is unavailable,
+The same finding from the same source (client IP, else user id, else
+command) is logged once per window, 60 seconds by default. If the cache store is unavailable,
 deduplication is skipped and findings are still logged.
 
 Client IPs and user ids can be personal data. Set retention for the log file
@@ -198,8 +200,11 @@ The whitelist has no environment variable. Edit `whitelist.routes` and
   written.
 - **Bounded cost.** Every pattern is possessive or bounded, and the work per
   input is capped: 1 MiB per query, 8 KiB per command, 255 characters per
-  host. Normal input is analyzed in microseconds. There is no benchmark
-  suite yet, so measure it in your own environment.
+  host. Normal input is analyzed in a few microseconds, and a monitored
+  query costs about 6 to 10 µs end to end (about 15 µs for an outbound
+  request). See
+  [benchmarks](benchmarks/README.md), and run `composer bench` on your own
+  machine.
 - **Public extension points only.** Laronclad uses Laravel's documented
   hooks and nothing internal.
 
@@ -225,8 +230,9 @@ The whitelist has no environment variable. Edit `whitelist.routes` and
 - **Whitelist.** A route is only known once routing has run. Queue jobs are
   not matched by job: whitelisting a `queue:work` command excludes
   everything that worker runs.
-- **Deduplication.** Findings from console and queue runs have no client IP
-  or user, so they share one key per rule and window.
+- **Deduplication.** Findings from console and queue runs are deduplicated
+  per command, so all jobs handled by one `queue:work` worker share one key
+  per rule and window.
 - **Logging.** The default log file is not rotated. Internal failures write
   one line each to PHP's error log, without rate limiting.
 - **Not tested yet** under Octane or other long-running servers.
@@ -242,7 +248,7 @@ Laronclad keeps, including that it will not block, are in
   retention, an allowlist for hosts, rate-limited internal error reporting.
 - **0.3**: a documented way to observe process execution, queue job
   whitelisting, per-rule switches and a documented way to add your own rules.
-- **0.4**: Octane support and a benchmark suite for every detector.
+- **0.4**: Octane support and benchmark regression checks in CI.
 - **1.0**: a stable API and a stable event format.
 
 ## Feedback

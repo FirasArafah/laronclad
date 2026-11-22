@@ -180,6 +180,72 @@ it('tracks the running artisan command through the console events', function () 
     expect($scope->isExcluded())->toBeFalse();
 });
 
+it('applies whitelist changes made after the first check', function () {
+    $scope = app(MonitoringScope::class);
+    $scope->enterCommand('migrate');
+
+    config()->set('laronclad.whitelist.commands', ['migrate']);
+    expect($scope->isExcluded())->toBeTrue();
+
+    config()->set('laronclad.whitelist.commands', []);
+    expect($scope->isExcluded())->toBeFalse();
+
+    config()->set('laronclad.whitelist.commands', ['other', 'migrate']);
+    expect($scope->isExcluded())->toBeTrue();
+
+    $scope->leaveCommand('migrate');
+});
+
+it('builds the whitelist once while its config is unchanged', function () {
+    config()->set('laronclad.whitelist.commands', ['migrate']);
+
+    $builds = 0;
+    app()->bind(Whitelist::class, function () use (&$builds): Whitelist {
+        $builds++;
+
+        return new Whitelist(commands: ['migrate']);
+    });
+
+    $scope = app(MonitoringScope::class);
+
+    for ($i = 0; $i < 5; $i++) {
+        $scope->isExcluded();
+    }
+
+    expect($builds)->toBe(1);
+
+    config()->set('laronclad.whitelist.commands', ['migrate', 'seed']);
+    $scope->isExcluded();
+
+    expect($builds)->toBe(2);
+});
+
+it('labels findings from an artisan command with the command, not the placeholder request', function () {
+    Cache::flush();
+
+    /** @var ArrayObject<int, array<array-key, mixed>> $contexts */
+    $contexts = new ArrayObject;
+
+    Event::listen(ThreatDetected::class, function (ThreatDetected $event) use ($contexts): void {
+        $contexts->append($event->context);
+    });
+
+    // What Laravel binds for console runs.
+    app()->instance('request', Request::create('http://localhost', 'GET'));
+
+    $events = app(Dispatcher::class);
+    $events->dispatch(new CommandStarting('queue:work', new ArrayInput([]), new NullOutput));
+
+    Http::fake();
+    Http::get('http://192.168.1.1/');
+
+    $events->dispatch(new CommandFinished('queue:work', new ArrayInput([]), new NullOutput, 0));
+
+    expect($contexts->getArrayCopy())->toBe([
+        ['host' => '192.168.1.1', 'command' => 'queue:work'],
+    ]);
+});
+
 it('does not inspect queries of a whitelisted route', function () {
     config()->set('laronclad.whitelist.routes', ['admin.*']);
     $rules = collectWiringRules();

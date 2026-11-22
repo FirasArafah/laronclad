@@ -8,6 +8,8 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Laronclad\Logging\RequestContext;
+use Laronclad\Support\MonitoringScope;
+use Laronclad\Support\Whitelist;
 
 /**
  * Runs the callback and returns whatever it wrote to PHP's error log.
@@ -108,6 +110,83 @@ it('does not run queries to look up the user', function () {
 
     expect($context)->not->toHaveKey('user_id');
     expect(DB::getQueryLog())->toBe([]);
+});
+
+/**
+ * Binds the placeholder request Laravel creates for console runs: GET
+ * from 127.0.0.1, with no real client behind it.
+ */
+function bindConsolePlaceholderRequest(): void
+{
+    app()->instance('request', Request::create('http://localhost', 'GET'));
+}
+
+function contextScope(): MonitoringScope
+{
+    return new MonitoringScope(static fn (): Whitelist => new Whitelist);
+}
+
+it('reports the running command instead of the console placeholder request', function () {
+    bindConsolePlaceholderRequest();
+
+    $scope = contextScope();
+    $scope->enterCommand('queue:work');
+
+    expect((new RequestContext($scope))->collect())->toBe(['command' => 'queue:work']);
+});
+
+it('reports the innermost command when commands are nested', function () {
+    bindConsolePlaceholderRequest();
+
+    $scope = contextScope();
+    $scope->enterCommand('schedule:run');
+    $scope->enterCommand('reports:send');
+
+    expect((new RequestContext($scope))->collect())->toBe(['command' => 'reports:send']);
+});
+
+it('keeps the user id inside a command', function () {
+    bindConsolePlaceholderRequest();
+    Auth::setUser(new GenericUser(['id' => 42]));
+
+    $scope = contextScope();
+    $scope->enterCommand('import:users');
+
+    expect((new RequestContext($scope))->collect())->toBe([
+        'command' => 'import:users',
+        'user_id' => 42,
+    ]);
+});
+
+it('reports request fields again once the command has finished', function () {
+    bindContextRequest('POST');
+
+    $scope = contextScope();
+    $scope->enterCommand('queue:work');
+    $scope->leaveCommand('queue:work');
+
+    expect((new RequestContext($scope))->collect())->toBe([
+        'ip' => '203.0.113.5',
+        'method' => 'POST',
+    ]);
+});
+
+it('reports request fields when no scope is given', function () {
+    bindContextRequest('POST');
+
+    expect((new RequestContext)->collect())->toBe([
+        'ip' => '203.0.113.5',
+        'method' => 'POST',
+    ]);
+});
+
+it('caps the length of a command name', function () {
+    bindConsolePlaceholderRequest();
+
+    $scope = contextScope();
+    $scope->enterCommand(str_repeat('a', 500));
+
+    expect((new RequestContext($scope))->collect()['command'])->toHaveLength(128);
 });
 
 it('fails open and reports only the exception class', function () {

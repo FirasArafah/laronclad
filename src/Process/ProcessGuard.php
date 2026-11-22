@@ -9,6 +9,8 @@ use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
 use Laronclad\Support\MonitoringScope;
+use Stringable;
+use Throwable;
 
 /**
  * Inspects shell commands before execution.
@@ -48,40 +50,52 @@ final readonly class ProcessGuard
     ) {}
 
     /**
-     * @param  string|array<int, string>|null  $command
+     * Never throws. Failures are reported to PHP's error log with the
+     * exception class only, so no command text leaks into logs.
+     *
+     * @param  string|array<array-key, mixed>|null  $command
      */
     public function inspect(string|array|null $command): void
     {
-        if ($this->scope?->isExcluded() === true) {
-            return;
-        }
+        try {
+            if ($this->scope?->isExcluded() === true) {
+                return;
+            }
 
-        $subject = $this->normalize($command);
+            $subject = $this->normalize($command);
 
-        if ($subject === null) {
-            return;
-        }
+            if ($subject === null) {
+                return;
+            }
 
-        $limit = $this->maxInputLength > 0
-            ? $this->maxInputLength
-            : self::DEFAULT_MAX_INPUT_LENGTH;
+            $limit = $this->maxInputLength > 0
+                ? $this->maxInputLength
+                : self::DEFAULT_MAX_INPUT_LENGTH;
 
-        $matches = InputLimit::analyze(
-            $this->analyzer,
-            $subject,
-            $limit,
-            ThreatType::ProcessExecution,
-        );
+            $matches = InputLimit::analyze(
+                $this->analyzer,
+                $subject,
+                $limit,
+                ThreatType::ProcessExecution,
+            );
 
-        foreach ($matches as $match) {
-            $this->logger->log($match, [
-                'command_length' => strlen($subject),
-            ]);
+            foreach ($matches as $match) {
+                $this->logger->log($match, [
+                    'command_length' => strlen($subject),
+                ]);
+            }
+        } catch (Throwable $e) {
+            error_log('[laronclad] process inspection failed: '.$e::class);
         }
     }
 
     /**
-     * @param  string|array<int, string>|null  $command
+     * Array commands come from application code and are not type
+     * checked, so only parts that convert to text cleanly are joined.
+     * Anything else (a nested array, an object) is skipped: joining it
+     * would raise a warning or an error inside the application.
+     *
+     * @param  string|array<array-key, mixed>|null  $command
      */
     private function normalize(string|array|null $command): ?string
     {
@@ -93,6 +107,14 @@ final readonly class ProcessGuard
             return $command;
         }
 
-        return implode(' ', $command);
+        $parts = [];
+
+        foreach ($command as $part) {
+            if (is_scalar($part) || $part instanceof Stringable) {
+                $parts[] = (string) $part;
+            }
+        }
+
+        return implode(' ', $parts);
     }
 }

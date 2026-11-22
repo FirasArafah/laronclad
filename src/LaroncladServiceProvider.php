@@ -23,6 +23,7 @@ use Laronclad\Database\DatabaseInterceptor;
 use Laronclad\Http\HttpInterceptor;
 use Laronclad\Logging\JsonLineFormatter;
 use Laronclad\Logging\Redactor;
+use Laronclad\Logging\RequestContext;
 use Laronclad\Logging\SafeLogger;
 use Laronclad\Process\ProcessGuard;
 use Laronclad\Support\MonitoringScope;
@@ -50,9 +51,24 @@ final class LaroncladServiceProvider extends ServiceProvider
             );
         });
 
+        // The scope is asked on every query and outbound request. Building
+        // the whitelist each time cost more than the detection itself, so
+        // it is built again only when the whitelist config has changed.
         $this->app->singleton(MonitoringScope::class, function ($app): MonitoringScope {
+            $whitelist = null;
+            $builtFrom = null;
+
             return new MonitoringScope(
-                static fn (): Whitelist => $app->make(Whitelist::class),
+                static function () use ($app, &$whitelist, &$builtFrom): Whitelist {
+                    $config = $app['config']->get('laronclad.whitelist');
+
+                    if ($whitelist === null || $config !== $builtFrom) {
+                        $whitelist = $app->make(Whitelist::class);
+                        $builtFrom = $config;
+                    }
+
+                    return $whitelist;
+                },
             );
         });
 
@@ -68,6 +84,7 @@ final class LaroncladServiceProvider extends ServiceProvider
                 redactor: $app->make(Redactor::class),
                 events: $app->make(Dispatcher::class),
                 deduplicationWindow: (int) config('laronclad.logging.deduplication_window', 60),
+                requestContext: new RequestContext($app->make(MonitoringScope::class)),
             );
         });
 

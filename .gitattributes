@@ -18,6 +18,7 @@
 # Keep the installed package small. Composer downloads GitHub's zip archive,
 # which honors export-ignore.
 /.editorconfig export-ignore
+/benchmarks export-ignore
 /.gitattributes export-ignore
 /.github export-ignore
 /.gitignore export-ignore

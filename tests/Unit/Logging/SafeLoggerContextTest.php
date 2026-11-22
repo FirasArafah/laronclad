@@ -10,7 +10,10 @@ use Laronclad\Analysis\ThreatMatch;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Events\ThreatDetected;
 use Laronclad\Logging\Redactor;
+use Laronclad\Logging\RequestContext;
 use Laronclad\Logging\SafeLogger;
+use Laronclad\Support\MonitoringScope;
+use Laronclad\Support\Whitelist;
 use Psr\Log\AbstractLogger;
 
 final class ContextSpyLogger extends AbstractLogger
@@ -85,6 +88,33 @@ it('deduplicates per real source instead of collapsing all sources', function ()
     $logger->log(contextMatch());
 
     expect($spy->messages)->toHaveCount(2);
+});
+
+it('deduplicates per command instead of collapsing all console runs', function () {
+    Cache::flush();
+    app()->instance('request', Request::create('http://localhost', 'GET'));
+
+    $scope = new MonitoringScope(static fn (): Whitelist => new Whitelist);
+    $spy = new ContextSpyLogger;
+    $logger = new SafeLogger(
+        $spy,
+        new Redactor,
+        deduplicationWindow: 60,
+        requestContext: new RequestContext($scope),
+    );
+
+    $scope->enterCommand('import:orders');
+    $logger->log(contextMatch());
+    $logger->log(contextMatch());
+
+    expect($spy->messages)->toHaveCount(1);
+
+    $scope->leaveCommand('import:orders');
+    $scope->enterCommand('import:users');
+    $logger->log(contextMatch());
+
+    expect($spy->messages)->toHaveCount(2);
+    expect(json_decode($spy->messages[1], true)['context'])->toBe(['command' => 'import:users']);
 });
 
 it('does not add request context when collection is turned off', function () {

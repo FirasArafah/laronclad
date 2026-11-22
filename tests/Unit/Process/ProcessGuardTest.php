@@ -78,6 +78,68 @@ it('handles an empty string', function () {
     expect($spy->messages)->toBe([]);
 });
 
+it('skips array parts that cannot be read as text, without warnings', function () {
+    $spy = new ProcessSpyLogger;
+    $warnings = [];
+
+    set_error_handler(function (int $level, string $message) use (&$warnings): bool {
+        $warnings[] = $message;
+
+        return true;
+    });
+
+    try {
+        processGuard($spy)->inspect(['rm', ['nested'], new stdClass, '-rf', '/']);
+    } finally {
+        restore_error_handler();
+    }
+
+    expect($warnings)->toBe([]);
+    expect(loggedProcessRules($spy))->toBe(['dangerous_command']);
+});
+
+it('reads numbers and stringable objects in array commands', function () {
+    $spy = new ProcessSpyLogger;
+
+    $target = new class implements Stringable
+    {
+        public function __toString(): string
+        {
+            return '/';
+        }
+    };
+
+    processGuard($spy)->inspect(['chmod', 777, 'file']);
+    processGuard($spy)->inspect(['rm', '-rf', $target]);
+
+    expect(loggedProcessRules($spy))->toBe(['dangerous_command', 'dangerous_command']);
+});
+
+it('fails open and reports only the exception class', function () {
+    $part = new class implements Stringable
+    {
+        public function __toString(): string
+        {
+            throw new RuntimeException('secret-detail');
+        }
+    };
+
+    $file = (string) tempnam(sys_get_temp_dir(), 'laronclad');
+    $previous = ini_set('error_log', $file);
+
+    try {
+        processGuard(new ProcessSpyLogger)->inspect(['rm', $part]);
+    } finally {
+        ini_set('error_log', (string) $previous);
+    }
+
+    $output = (string) file_get_contents($file);
+    unlink($file);
+
+    expect($output)->toContain('process inspection failed: RuntimeException');
+    expect($output)->not->toContain('secret-detail');
+});
+
 it('inspects both ends of an oversized command and flags it', function () {
     $spy = new ProcessSpyLogger;
 

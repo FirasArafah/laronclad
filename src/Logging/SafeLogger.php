@@ -18,8 +18,9 @@ use Throwable;
  * that knows the log format. Failures are swallowed: a monitoring
  * tool must never take down the application.
  *
- * Request metadata (ip, method, route, user id) is added to every
- * finding so deduplication can tell sources apart. Values passed
+ * Request metadata (ip, method, route, user id, or the Artisan
+ * command when one is running) is added to every finding so
+ * deduplication can tell sources apart. Values passed
  * by the caller win over collected ones. Pass null for
  * $requestContext to turn collection off.
  *
@@ -108,7 +109,7 @@ final readonly class SafeLogger
      */
     private function deduplicationKey(ThreatMatch $match, array $context): string
     {
-        $source = $context['ip'] ?? $context['user_id'] ?? 'unknown';
+        $source = $context['ip'] ?? $context['user_id'] ?? $context['command'] ?? 'unknown';
 
         return 'laronclad:dedup:'.sha1($match->type->value.'|'.$match->rule.'|'.$source);
     }

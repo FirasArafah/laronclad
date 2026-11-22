@@ -57,6 +57,17 @@ final class MonitoringScope
         }
     }
 
+    /**
+     * The Artisan command running right now, or null outside one.
+     * Queue workers and scheduled tasks run inside a command too.
+     */
+    public function runningCommand(): ?string
+    {
+        return $this->commands === []
+            ? null
+            : $this->commands[array_key_last($this->commands)];
+    }
+
     public function isExcluded(): bool
     {
         try {
@@ -66,9 +77,7 @@ final class MonitoringScope
                 return false;
             }
 
-            $command = $this->commands === []
-                ? null
-                : $this->commands[array_key_last($this->commands)];
+            $command = $this->runningCommand();
 
             return $whitelist->matchesCommand($command)
                 || $whitelist->matchesRoute($this->routeName());

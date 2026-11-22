@@ -7,7 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0-alpha] - 2026-11-22
+## [0.1.1-alpha] - 2026-11-22
+
+First installable public pre-release. It contains everything listed under
+0.1.0-alpha below, plus the changes here. Install this version, not
+0.1.0-alpha.
+
+### Fixed
+
+- Findings from Artisan commands, queue workers and scheduled tasks were
+  logged as `"method":"GET"` from `"ip":"127.0.0.1"`, because Laravel binds
+  a placeholder request for console runs. They now carry the running
+  command instead (`"command":"queue:work"`), and are deduplicated per
+  command.
+- `ProcessGuard::inspect()` could throw into the application when an array
+  command held a part that is not text: an object raised an `Error`, and a
+  nested array raised a warning that Laravel turns into an exception. It
+  now contains its own failures like the other hooks, and skips parts that
+  cannot be read as text.
+
+### Changed
+
+- The whitelist is built once and rebuilt only when its config changes,
+  instead of on every query and outbound request. On the benchmark machine
+  this lowers the cost of a monitored query from about 20 µs to about 6 to
+  10 µs. Whitelist changes made at runtime still apply.
+
+### Added
+
+- A benchmark script (`composer bench`) that measures every detector and
+  the end-to-end cost per query and outbound request, with Laronclad off
+  and on. Results and method are in `benchmarks/README.md`. The script is
+  not part of the installed package.
+
+## [0.1.0-alpha] - 2026-11-22 [YANKED]
+
+Withdrawn. Packagist serves an older, incomplete commit under this version
+number and does not allow it to be replaced. Use 0.1.1-alpha.
 
 First public pre-release. Detection only. No blocking.
 
@@ -70,5 +106,6 @@ First public pre-release. Detection only. No blocking.
 - No benchmark suite yet. Not tested under Octane or other long-running
   servers.
 
-[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...HEAD
+[Unreleased]: https://github.com/FirasArafah/laronclad/compare/v0.1.1-alpha...HEAD
+[0.1.1-alpha]: https://github.com/FirasArafah/laronclad/compare/v0.1.0-alpha...v0.1.1-alpha
 [0.1.0-alpha]: https://github.com/FirasArafah/laronclad/releases/tag/v0.1.0-alpha

@@ -6,13 +6,14 @@ namespace Laronclad\Logging;
 
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\Request;
+use Laronclad\Support\MonitoringScope;
 use Throwable;
 
 /**
  * Collects safe metadata about the current request for log lines.
  *
  * Only metadata is collected: client IP, HTTP method, route name
- * and authenticated user id. No request bodies, headers, query
+ * or Artisan command name, and authenticated user id. No request bodies, headers, query
  * strings or cookies are ever read.
  *
  * Fail-open: any failure yields fewer fields, never an exception.
@@ -22,17 +23,47 @@ use Throwable;
  * Resolving a user can run a database query, and this class is
  * called from inside the database hook. Triggering a query there
  * would re-enter the monitor.
+ *
+ * Inside an Artisan command (including queue workers and scheduled
+ * tasks) there is no real HTTP request. Laravel binds a placeholder
+ * request that reports GET from 127.0.0.1, which would make console
+ * findings look like local web traffic. So when the scope says a
+ * command is running, the command name is reported instead of the
+ * request fields.
  */
 final readonly class RequestContext
 {
     private const MAX_FIELD_LENGTH = 128;
+
+    public function __construct(private ?MonitoringScope $scope = null) {}
 
     /**
      * @return array<string, int|string>
      */
     public function collect(): array
     {
-        return array_merge($this->fromRequest(), $this->fromAuth());
+        $command = $this->runningCommand();
+
+        $source = $command !== null
+            ? ['command' => $command]
+            : $this->fromRequest();
+
+        return array_merge($source, $this->fromAuth());
+    }
+
+    private function runningCommand(): ?string
+    {
+        try {
+            $command = $this->scope?->runningCommand();
+
+            return is_string($command) && $command !== ''
+                ? substr($command, 0, self::MAX_FIELD_LENGTH)
+                : null;
+        } catch (Throwable $e) {
+            error_log('[laronclad] request context failed: '.$e::class);
+
+            return null;
+        }
     }
 
     /**
