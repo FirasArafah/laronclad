@@ -8,6 +8,7 @@ use Laronclad\Analysis\InputLimit;
 use Laronclad\Analysis\ThreatAnalyzer;
 use Laronclad\Analysis\ThreatType;
 use Laronclad\Logging\SafeLogger;
+use Laronclad\Support\MonitoringScope;
 
 /**
  * Inspects shell commands before execution.
@@ -23,7 +24,8 @@ use Laronclad\Logging\SafeLogger;
  *     app(ProcessGuard::class)->inspect($command);
  *
  * The guard itself does not run or block commands. It analyzes the
- * command string and hands matches to the logger.
+ * command string and hands matches to the logger. When called from
+ * a whitelisted route or Artisan command it does nothing.
  *
  * Both string and array command forms are supported. Array commands
  * are joined with spaces for analysis only; the original array is
@@ -42,6 +44,7 @@ final readonly class ProcessGuard
         private ThreatAnalyzer $analyzer,
         private SafeLogger $logger,
         private int $maxInputLength = self::DEFAULT_MAX_INPUT_LENGTH,
+        private ?MonitoringScope $scope = null,
     ) {}
 
     /**
@@ -49,6 +52,10 @@ final readonly class ProcessGuard
      */
     public function inspect(string|array|null $command): void
     {
+        if ($this->scope?->isExcluded() === true) {
+            return;
+        }
+
         $subject = $this->normalize($command);
 
         if ($subject === null) {

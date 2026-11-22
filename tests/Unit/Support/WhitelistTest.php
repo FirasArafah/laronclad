@@ -46,3 +46,26 @@ it('is not empty when any pattern is present', function () {
     expect((new Whitelist(routes: ['x']))->isEmpty())->toBeFalse();
     expect((new Whitelist(commands: ['y']))->isEmpty())->toBeFalse();
 });
+
+it('does not match an empty subject', function () {
+    $whitelist = new Whitelist(routes: ['users.*'], commands: ['migrate']);
+
+    expect($whitelist->matchesRoute(''))->toBeFalse();
+    expect($whitelist->matchesCommand(''))->toBeFalse();
+});
+
+it('ignores patterns that would match everything', function () {
+    $whitelist = new Whitelist(routes: ['*'], commands: ['**', ' ', '']);
+
+    expect($whitelist->matchesRoute('anything.at.all'))->toBeFalse();
+    expect($whitelist->matchesCommand('migrate'))->toBeFalse();
+    expect($whitelist->isEmpty())->toBeTrue();
+});
+
+it('still honors real patterns next to a catch-all one', function () {
+    $whitelist = new Whitelist(routes: ['*', 'admin.*']);
+
+    expect($whitelist->matchesRoute('admin.users.index'))->toBeTrue();
+    expect($whitelist->matchesRoute('public.home'))->toBeFalse();
+    expect($whitelist->isEmpty())->toBeFalse();
+});

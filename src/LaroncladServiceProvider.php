@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Laronclad;
 
+use Illuminate\Console\Events\CommandFinished;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Laronclad\Analysis\RuleInterface;
@@ -23,6 +25,7 @@ use Laronclad\Logging\JsonLineFormatter;
 use Laronclad\Logging\Redactor;
 use Laronclad\Logging\SafeLogger;
 use Laronclad\Process\ProcessGuard;
+use Laronclad\Support\MonitoringScope;
 use Laronclad\Support\Whitelist;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -38,10 +41,18 @@ final class LaroncladServiceProvider extends ServiceProvider
             'laronclad',
         );
 
-        $this->app->singleton(Whitelist::class, function (): Whitelist {
+        // Not a singleton on purpose: the whitelist is read from config
+        // each time it is needed, so a change made at runtime applies.
+        $this->app->bind(Whitelist::class, function (): Whitelist {
             return new Whitelist(
                 routes: $this->configList('laronclad.whitelist.routes'),
                 commands: $this->configList('laronclad.whitelist.commands'),
+            );
+        });
+
+        $this->app->singleton(MonitoringScope::class, function ($app): MonitoringScope {
+            return new MonitoringScope(
+                static fn (): Whitelist => $app->make(Whitelist::class),
             );
         });
 
@@ -64,7 +75,11 @@ final class LaroncladServiceProvider extends ServiceProvider
             return new DatabaseInterceptor(
                 analyzer: $app->make(ThreatAnalyzer::class),
                 logger: $app->make(SafeLogger::class),
-                maxInputLength: (int) config('laronclad.database.max_input_length', 8192),
+                maxInputLength: (int) config(
+                    'laronclad.database.max_input_length',
+                    DatabaseInterceptor::DEFAULT_MAX_INPUT_LENGTH,
+                ),
+                scope: $app->make(MonitoringScope::class),
             );
         });
 
@@ -72,6 +87,7 @@ final class LaroncladServiceProvider extends ServiceProvider
             return new HttpInterceptor(
                 analyzer: $app->make(ThreatAnalyzer::class),
                 logger: $app->make(SafeLogger::class),
+                scope: $app->make(MonitoringScope::class),
             );
         });
 
@@ -79,6 +95,7 @@ final class LaroncladServiceProvider extends ServiceProvider
             return new ProcessGuard(
                 analyzer: $app->make(ThreatAnalyzer::class),
                 logger: $app->make(SafeLogger::class),
+                scope: $app->make(MonitoringScope::class),
             );
         });
 
@@ -121,6 +138,28 @@ final class LaroncladServiceProvider extends ServiceProvider
                 $this->app->make(HttpInterceptor::class)->register();
             });
         }
+
+        $this->installHook('whitelist', function (): void {
+            $this->trackRunningCommand();
+        });
+    }
+
+    /**
+     * Tell the monitoring scope which Artisan command is running, so
+     * whitelisted commands can be skipped.
+     */
+    private function trackRunningCommand(): void
+    {
+        $scope = $this->app->make(MonitoringScope::class);
+        $events = $this->app->make(Dispatcher::class);
+
+        $events->listen(CommandStarting::class, static function (CommandStarting $event) use ($scope): void {
+            $scope->enterCommand($event->command);
+        });
+
+        $events->listen(CommandFinished::class, static function (CommandFinished $event) use ($scope): void {
+            $scope->leaveCommand($event->command);
+        });
     }
 
     /**

@@ -79,9 +79,18 @@ return [
     /*
      * Whitelist.
      *
-     * Reserved. These lists are read and validated, but they are not
-     * applied in v0.1: listed routes and commands are still monitored.
-     * Patterns will use fnmatch() syntax.
+     * Routes and Artisan commands listed here are not monitored:
+     * their database queries and outbound requests are not inspected.
+     *
+     * Routes are matched by route name, commands by command name.
+     * Patterns use fnmatch() syntax, so '*' matches any characters,
+     * dots included. A pattern made only of stars is ignored, because
+     * it would switch monitoring off; use 'enabled' for that.
+     *
+     * A route is only known once routing has run, so queries and
+     * requests made earlier (in global middleware, for example) are
+     * still monitored. Queue jobs are not matched by job; whitelisting
+     * a queue:work command excludes everything that worker runs.
      *
      * Example:
      *   'routes' => ['admin.*', 'horizon.*'],
