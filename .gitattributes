@@ -14,4 +14,15 @@
 *.zip binary
 
 /composer.lock -diff
-/tests/Fixtures/** linguist-vendored
+
+# Keep the installed package small. Composer downloads GitHub's zip archive,
+# which honors export-ignore.
+/.editorconfig export-ignore
+/.gitattributes export-ignore
+/.github export-ignore
+/.gitignore export-ignore
+/phpstan.neon export-ignore
+/phpunit.xml export-ignore
+/pint.json export-ignore
+/tests export-ignore
+/CONTRIBUTING.md export-ignore

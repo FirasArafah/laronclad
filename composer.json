@@ -1,14 +1,16 @@
 {
     "name": "firasarafah/laronclad",
-    "description": "Runtime monitoring and protection layer for Laravel applications.",
+    "description": "Runtime monitoring for Laravel applications: logs suspicious SQL queries, outbound requests and commands. Dry-run only.",
     "keywords": [
         "laravel",
         "security",
         "rasp",
         "monitoring",
+        "runtime-monitoring",
         "sql-injection",
         "ssrf"
     ],
+    "homepage": "https://github.com/FirasArafah/laronclad",
     "license": "Apache-2.0",
     "type": "library",
     "authors": [
@@ -17,6 +19,10 @@
             "homepage": "https://github.com/FirasArafah"
         }
     ],
+    "support": {
+        "issues": "https://github.com/FirasArafah/laronclad/issues",
+        "source": "https://github.com/FirasArafah/laronclad"
+    },
     "require": {
         "php": "^8.2",
         "illuminate/cache": "^12.0|^13.0",
@@ -73,6 +79,9 @@
     "prefer-stable": true,
     "archive": {
         "exclude": [
+            "/.editorconfig",
+            "/.gitattributes",
+            "/.gitignore",
             "/.github",
             "/docs",
             "/tests",
@@ -81,6 +90,7 @@
             "/phpstan.neon",
             "/pint.json",
             "/CHANGELOG.md",
+            "/CONTRIBUTING.md",
             "/SECURITY.md"
         ]
     }

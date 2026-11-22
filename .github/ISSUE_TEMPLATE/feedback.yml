@@ -1,0 +1,46 @@
+name: Detection feedback
+description: A false positive, a missed attack, or a rule idea
+labels: [feedback]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Detection feedback is the most useful thing you can send. Please describe
+        the shape of the input, not real data: replace values, table names and
+        hosts you do not want to share.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback
+      options:
+        - False positive (flagged, but legitimate)
+        - Missed attack (not flagged, but should be)
+        - Rule idea
+        - Performance or overhead
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Rule involved, if any
+      description: The "rule" value from the log line, for example union_select.
+  - type: textarea
+    id: shape
+    attributes:
+      label: The input, with sensitive values removed
+      description: For example a query shape, a host pattern or a command.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Laronclad, Laravel and PHP versions
+      placeholder: "0.1.0-alpha, Laravel 12, PHP 8.3"

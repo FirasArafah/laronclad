@@ -8,10 +8,8 @@ Use GitHub's private security advisories:
 
 https://github.com/FirasArafah/laronclad/security/advisories/new
 
-An email contact will be added before the first stable release. If
-GitHub advisories are not an option for you, open a minimal issue
-asking for a private channel. Do not include any details in that
-issue.
+If GitHub advisories are not an option for you, open a minimal issue asking
+for a private channel. Do not include any details in that issue.
 
 ## What to include
 
@@ -29,22 +27,21 @@ Please don't include real user data or production credentials.
 
 ## Supported versions
 
-Laronclad is pre-alpha. There is no stable release yet.
+Laronclad is a pre-release. Only the latest 0.1.x alpha receives fixes.
 
-Once 1.0 ships, this section will list supported versions and their
-support windows.
+Once 1.0 ships, this section will list supported versions and their support
+windows.
 
 ## Supported Laravel versions
 
-Laronclad follows Laravel's own security support window. Versions
-that no longer receive security fixes from the Laravel team are not
-supported.
+Laronclad follows Laravel's own security support window. Versions that no
+longer receive security fixes from the Laravel team are not supported.
 
-| Laravel         | Status                                      |
-|-----------------|---------------------------------------------|
-| 13.x            | Supported (security fixes until March 2028) |
+| Laravel         | Status                                         |
+|-----------------|------------------------------------------------|
+| 13.x            | Supported (security fixes until March 2028)    |
 | 12.x            | Supported (security fixes until February 2027) |
-| 11.x and older  | Not supported (EOL)                         |
+| 11.x and older  | Not supported (EOL)                            |
 
 ## Scope
 
@@ -60,3 +57,5 @@ Out of scope:
 - Vulnerabilities in dependencies (report upstream)
 - Issues caused by modifying the package in unsupported ways
 - Denial of service on your own test environment
+- Bypasses of detection rules. Detection is heuristic and documented as
+  such; please report them as detection feedback instead.
