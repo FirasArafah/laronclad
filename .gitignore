@@ -56,9 +56,5 @@ demo/vulnerable-app/bootstrap/cache/
 /dist/
 *.tar.gz
 
-
-# MD Files
-CONTRIBUTING.md
-
 # Internal docs (kept locally only)
 /docs/
